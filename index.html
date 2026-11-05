@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pylontech US5000 Monitor Real</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0b0f19; color: #94a3b8; }
+        .card-bg { background-color: #111827; border: 1px solid #1f2937; }
+        .cell-box { background-color: #1e293b; border: 1px solid #334155; }
+    </style>
+</head>
+<body class="p-6 font-sans">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <header class="flex justify-between items-center pb-4 border-b border-gray-800">
+            <div>
+                <h1 class="text-xl font-bold text-white tracking-wide">Pylontech US5000 Monitor (Master / Slave) — Dual UART Live</h1>
+                <div class="flex items-center space-x-2 mt-1">
+                    <span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span>
+                    <span class="text-xs text-emerald-400 font-mono">DUAL COMMAND CONNECTED</span>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <a href="/logs.html" class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-lg shadow transition flex items-center space-x-2">
+                    <span>Ver Historial de Eventos</span>
+                </a>
+                <button onclick="exportTelemetryData()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-lg shadow transition flex items-center space-x-2">
+                    <span>Descargar JSON</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Top Metrics Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="card-bg rounded-xl p-6 flex flex-col justify-between shadow-lg">
+                <h2 class="text-xs font-bold tracking-wider text-amber-500 uppercase">Charge (Total)</h2>
+                <div class="flex items-center justify-around my-4">
+                    <!-- Gráfico circular SVG estático proporcional al porcentaje -->
+                    <div class="relative w-28 h-28 flex items-center justify-center">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                            <!-- Fondo del círculo -->
+                            <path class="text-gray-800" stroke-width="3.8" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <!-- Segmento de progreso dinámico -->
+                            <path id="soc-circle" class="text-emerald-500 transition-all duration-500 ease-out" stroke-dasharray="0, 100" stroke-width="3.8" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span id="soc-val" class="text-2xl font-bold text-white">--%</span>
+                        </div>
+                    </div>
+                    <div class="space-y-1 text-sm font-mono">
+                        <div class="flex justify-between space-x-4"><span class="text-gray-400">Voltage:</span> <span id="volt-val" class="text-white">-- V</span></div>
+                        <div class="flex justify-between space-x-4"><span class="text-gray-400">Current:</span> <span id="curr-val" class="text-white">-- A</span></div>
+                        <div class="flex justify-between space-x-4"><span class="text-gray-400">Power:</span> <span id="power-val" class="text-white">-- W</span></div>
+                        <div class="flex justify-between space-x-4"><span class="text-gray-400">State:</span> <span id="state-val" class="text-emerald-400 font-bold">--</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-bg rounded-xl p-6 flex flex-col justify-between shadow-lg">
+                <h2 class="text-xs font-bold tracking-wider text-amber-500 uppercase">Health</h2>
+                <div class="space-y-3 text-sm font-mono my-auto">
+                    <div class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">State of health</span> <span id="soh-val" class="text-white font-bold">-- %</span></div>
+                    <div class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Charge cycles</span> <span id="cycles-val" class="text-white font-bold">--</span></div>
+                    <div class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Cell imbalance</span> <span id="imbalance-val" class="text-white font-bold">-- mV</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Battery Units</span> <span id="units-val" class="text-white font-bold">--</span></div>
+                </div>
+            </div>
+
+            <div class="card-bg rounded-xl p-6 flex flex-col justify-between shadow-lg">
+                <h2 class="text-xs font-bold tracking-wider text-amber-500 uppercase">Temperatures</h2>
+                <div class="space-y-3 text-sm font-mono my-auto">
+                    <div class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Battery</span> <span id="temp-batt" class="text-white font-bold">-- °C</span></div>
+                    <div class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">MOSFET</span> <span id="temp-mosfet" class="text-white font-bold">-- °C</span></div>
+                    <div class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Lowest cell</span> <span id="temp-low" class="text-white font-bold">-- °C</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Highest cell</span> <span id="temp-high" class="text-white font-bold">-- °C</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-bg rounded-xl p-6 shadow-lg space-y-4">
+            <h2 class="text-sm font-bold tracking-wider text-amber-500 uppercase">Battery 1 — Master Module (US5000)</h2>
+            <div id="batt-1-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3"></div>
+        </div>
+
+        <div class="card-bg rounded-xl p-6 shadow-lg space-y-4">
+            <h2 class="text-sm font-bold tracking-wider text-amber-500 uppercase">Battery 2 — Slave Module (US5000)</h2>
+            <div id="batt-2-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3"></div>
+        </div>
+    </div>
+
+    <script>
+        let latestTelemetryData = null;
+
+        function renderCells(containerId, cellsData) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            cellsData.forEach((volts, index) => {
+                const box = document.createElement('div');
+                box.className = 'cell-box rounded-lg p-3 text-center';
+                box.innerHTML = `
+                    <div class="text-[10px] text-gray-400 uppercase tracking-wider">Cell ${index + 1}</div>
+                    <div class="text-sm font-mono font-bold text-white mt-1">${volts} mV</div>
+                `;
+                container.appendChild(box);
+            });
+        }
+
+        async function updateData() {
+            try {
+                const response = await fetch('/api/telemetry');
+                const data = await response.json();
+                latestTelemetryData = data;
+
+                const soc = data.charge_total.percentage;
+                document.getElementById('soc-val').innerText = soc + '%';
+                
+                // Actualiza el segmento SVG proporcional al porcentaje
+                const circle = document.getElementById('soc-circle');
+                circle.setAttribute('stroke-dasharray', `${soc}, 100`);
+
+                document.getElementById('volt-val').innerText = data.charge_total.voltage + ' V';
+                document.getElementById('curr-val').innerText = data.charge_total.current + ' A';
+                document.getElementById('power-val').innerText = data.charge_total.power + ' W';
+                document.getElementById('state-val').innerText = data.charge_total.state;
+
+                document.getElementById('soh-val').innerText = data.health.state_of_health + ' %';
+                document.getElementById('cycles-val').innerText = data.health.charge_cycles;
+                document.getElementById('imbalance-val').innerText = data.health.cell_imbalance + ' mV';
+                document.getElementById('units-val').innerText = data.health.battery_units;
+
+                document.getElementById('temp-batt').innerText = data.temperatures.battery + ' °C';
+                document.getElementById('temp-mosfet').innerText = data.temperatures.mosfet + ' °C';
+                document.getElementById('temp-low').innerText = data.temperatures.lowest_cell + ' °C';
+                document.getElementById('temp-high').innerText = data.temperatures.highest_cell + ' °C';
+
+                renderCells('batt-1-grid', data.battery_1);
+                renderCells('batt-2-grid', data.battery_2);
+            } catch (error) {
+                console.error('Error fetching telemetry:', error);
+            }
+        }
+
+        function exportTelemetryData() {
+            if (!latestTelemetryData) {
+                alert("No hay datos de telemetría disponibles todavía.");
+                return;
+            }
+            
+            const exportObj = {
+                timestamp: new Date().toISOString(),
+                telemetry: latestTelemetryData
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 4));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `pylontech_telemetry_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        updateData();
+        setInterval(updateData, 3000);
+    </script>
+</body>
+</html>

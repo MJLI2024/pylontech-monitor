@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Eventos - Pylontech US5000</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0b0f19; color: #94a3b8; }
+        .card-bg { background-color: #111827; border: 1px solid #1f2937; }
+    </style>
+</head>
+<body class="p-6 font-sans">
+    <div class="max-w-5xl mx-auto space-y-6">
+        <header class="flex justify-between items-center pb-4 border-b border-gray-800">
+            <div>
+                <h1 class="text-xl font-bold text-white tracking-wide">Pylontech US5000 — Historial de Eventos y Alarmas</h1>
+                <p class="text-xs text-gray-400 mt-1">Registro interno extraído directamente de la memoria de los módulos</p>
+            </div>
+            <a href="/index.html" class="bg-gray-800 hover:bg-gray-700 text-white text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-lg shadow transition">
+                ← Volver al Monitor
+            </a>
+        </header>
+
+        <div class="card-bg rounded-xl p-6 shadow-lg space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-sm font-bold tracking-wider text-amber-500 uppercase">Buffer de Eventos (UART Log)</h2>
+                <button onclick="loadLogs()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg transition">
+                    Actualizar Logs
+                </button>
+            </div>
+            
+            <div id="logs-container" class="bg-[#0b0f19] border border-gray-800 rounded-lg p-4 font-mono text-xs text-emerald-400 h-[500px] overflow-y-auto space-y-1">
+                <p class="text-gray-500">Cargando eventos desde el puerto serie...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadLogs() {
+            const container = document.getElementById('logs-container');
+            container.innerHTML = '<p class="text-amber-400 animate-pulse">Leyendo eventos de la batería por UART...</p>';
+            
+            try {
+                const response = await fetch('/api/telemetry');
+                const data = await response.json();
+                
+                container.innerHTML = '';
+                if (data.event_logs && data.event_logs.length > 0) {
+                    data.event_logs.forEach(log => {
+                        const div = document.createElement('div');
+                        div.className = "border-b border-gray-900/50 py-1 hover:bg-gray-900/30 px-2 rounded";
+                        div.textContent = log;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = '<p class="text-gray-400">No hay registros disponibles.</p>';
+                }
+            } catch (error) {
+                container.innerHTML = '<p class="text-red-400">Error al obtener el historial de eventos.</p>';
+                console.error(error);
+            }
+        }
+
+        loadLogs();
+    </script>
+</body>
+</html>
