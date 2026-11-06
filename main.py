@@ -5,7 +5,7 @@ import serial
 import time
 import os
 
-app = FastAPI(title="Pylontech US5000 Full Monitor with Logs Page", version="3.1.0")
+app = FastAPI(title="Pylontech US5000 Full Monitor with Logs Page", version="3.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,7 +40,6 @@ def read_pylontech_serial():
             ser.reset_input_buffer()
             ser.reset_output_buffer()
             
-            # 1. Datos generales con 'pwr'
             ser.write(b"pwr\r\n")
             time.sleep(0.3)
             pwr_output = ""
@@ -50,10 +49,9 @@ def read_pylontech_serial():
                     pwr_output += ser.read(ser.in_waiting).decode('utf-8', errors='ignore')
                 time.sleep(0.02)
 
-            # 2. Historial completo con 'log' y enviando Enter (\n) para paginar
             ser.write(b"log\r\n")
             time.sleep(0.3)
-            ser.write(b"\n\n\n") # Simulamos varios enters para saltar paginaciones
+            ser.write(b"\n\n\n")
             time.sleep(0.6)
             
             log_output = ""
@@ -63,7 +61,6 @@ def read_pylontech_serial():
                     log_output += ser.read(ser.in_waiting).decode('utf-8', errors='ignore')
                 time.sleep(0.02)
 
-            # Procesamiento de 'pwr'
             m1_data = None
             m2_data = None
             for line in pwr_output.splitlines():
@@ -72,7 +69,6 @@ def read_pylontech_serial():
                     if parts[0] == "1": m1_data = parts
                     elif parts[0] == "2": m2_data = parts
 
-            # Procesamiento limpio de eventos
             event_logs = []
             for line in log_output.splitlines():
                 clean_line = line.strip()
@@ -84,10 +80,18 @@ def read_pylontech_serial():
 
             if m1_data:
                 volt_v = safe_int(m1_data[1]) / 1000.0
-                curr_a = safe_int(m1_data[2]) / 1000.0
-                if abs(curr_a) > 100: curr_a = curr_a / 10.0
+                curr_m1 = safe_int(m1_data[2]) / 1000.0
+                if abs(curr_m1) > 100: curr_m1 = curr_m1 / 10.0
                 
-                power_w = int(volt_v * curr_a)
+                # Sumamos la corriente del Módulo 2 (Esclavo) si está disponible para el total del banco
+                curr_m2 = 0.0
+                if m2_data and len(m2_data) >= 3:
+                    curr_m2 = safe_int(m2_data[2]) / 1000.0
+                    if abs(curr_m2) > 100: curr_m2 = curr_m2 / 10.0
+
+                total_current = curr_m1 + curr_m2
+                power_w = int(volt_v * total_current)
+                
                 temp_c = safe_int(m1_data[3]) / 1000.0
                 
                 soc_pct = 18
@@ -123,7 +127,7 @@ def read_pylontech_serial():
                     "charge_total": {
                         "percentage": soc_pct if soc_pct > 0 else 18,
                         "voltage": round(volt_v, 2),
-                        "current": round(curr_a, 2),
+                        "current": round(total_current, 2),
                         "power": power_w,
                         "state": state
                     },
